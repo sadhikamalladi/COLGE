@@ -28,39 +28,39 @@ class Runner:
         list_aprox_set =[]
         mean_reward = []
         for epoch_ in range(25):
-            print(str(epoch_) + '!!!')
+            print(f'Epoch {epoch_}')
             for g in range(1, games + 1):
-                print(str(g) + '!!!!')
-                for epoch in range(5):
-                    self.environment.reset(g)
-                    self.agent.reset(g)
-                    cumul_reward_game = 0.0
+                self.environment.reset(g)
+                self.agent.reset(g)
+                cumul_reward_game = 0.0
 
-                    for i in range(1, max_iter + 1):
-                        # if self.verbose:
-                        # print("Simulation step {}:".format(i))
-                        (obs, act, rew, done) = self.step()
-                        cumul_reward += rew
-                        cumul_reward_game += rew
-                        if self.verbose:
-                            # print(" ->       observation: {}".format(obs))
-                            # print(" ->            action: {}".format(act))
-                            # print(" ->            reward: {}".format(rew))
-                            # print(" -> cumulative reward: {}".format(cumul_reward))
-                            if done:
-                                mvc_approx =self.environment.get_approx()
-                                mvc_optimal = self.environment.get_optimal_sol()
-                                print(" ->    Terminal event: cumulative rewards = {}".format(cumul_reward_game))
-                                print(" ->    Optimal solution = {}".format(mvc_optimal))
-
-                                list_cumul_reward_game.append(-cumul_reward_game)
-                                #print("optimal set : " + str(np.sum(np.array(obs[0, :, 0]))))
-                                list_optimal_set.append(cumul_reward_game/(mvc_optimal))
-                                list_aprox_set.append(cumul_reward_game/(mvc_approx))
-                                #if g > 100:
-                                 #   mean_reward.append(np.mean(list_cumul_reward_game[-100:]))
+                for i in range(max_iter):
+                    # if self.verbose:
+                    # print("Simulation step {}:".format(i))
+                    (obs, act, rew, done) = self.step()
+                    cumul_reward += rew
+                    cumul_reward_game += rew
+                    if self.verbose:
+                        # print(" ->       observation: {}".format(obs))
+                        # print(" ->            action: {}".format(act))
+                        # print(" ->            reward: {}".format(rew))
+                        # print(" -> cumulative reward: {}".format(cumul_reward))
                         if done:
-                            break
+                            mvc_approx =self.environment.num_colors
+                            if mvc_approx == 0:
+                                import pdb;pdb.set_trace()
+                            mvc_optimal = self.environment.get_optimal_sol()
+                            if self.verbose:
+                                print(f'{mvc_approx}')
+
+                            list_cumul_reward_game.append(-cumul_reward_game)
+                            #print("optimal set : " + str(np.sum(np.array(obs[0, :, 0]))))
+                            list_optimal_set.append(cumul_reward_game/(mvc_optimal))
+                            #list_aprox_set.append(cumul_reward_game/(mvc_approx))
+                            #if g > 100:
+                             #   mean_reward.append(np.mean(list_cumul_reward_game[-100:]))
+                    if done:
+                        break
                 np.savetxt('test_'+str(epoch_)+'.out', list_optimal_set, delimiter=',')
                 np.savetxt('test_approx_' + str(epoch_) + '.out', list_aprox_set, delimiter=',')
 
@@ -83,6 +83,9 @@ def iter_or_loopcall(o, count):
         # must be iterable
         return list(iter(o))
 
+def listify(o, count):
+    return [o for _ in range(count)]
+
 class BatchRunner:
     """
     Runs several instances of the same RL problem in parallel
@@ -90,17 +93,17 @@ class BatchRunner:
     """
 
     def __init__(self, env_maker, agent_maker, count, verbose=False):
-        self.environments = iter_or_loopcall(env_maker, count)
-        self.agents = iter_or_loopcall(agent_maker, count)
+        self.environments = listify(env_maker, count)
+        self.agents = listify(agent_maker, count)
         assert(len(self.agents) == len(self.environments))
         self.verbose = verbose
         self.ended = [ False for _ in self.environments ]
 
-    def game(self, max_iter):
+    def game(self, max_iter, g):
         rewards = []
         for (agent, env) in zip(self.agents, self.environments):
-            env.reset()
-            agent.reset()
+            env.reset(g)
+            agent.reset(g)
             game_reward = 0
             for i in range(1, max_iter+1):
                 observation = env.observe()
@@ -116,7 +119,7 @@ class BatchRunner:
     def loop(self, games, max_iter):
         cum_avg_reward = 0.0
         for g in range(1, games+1):
-            avg_reward = self.game(max_iter)
+            avg_reward = self.game(max_iter, g)
             cum_avg_reward += avg_reward
             if self.verbose:
                 print("Simulation game {}:".format(g))

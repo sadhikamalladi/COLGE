@@ -41,7 +41,7 @@ class DQAgent:
         self.n_step=3
 
         self.epsilon=1
-        self.epsilon_=1
+        self.epsilon_=0.5
         self.epsilon_min=0.02
         self.discount_factor =0.999990
         self.eps_end=0.02
@@ -123,8 +123,6 @@ class DQAgent:
 
 
     def act(self, observation):
-
-
         if self.epsilon_ > np.random.rand():
             return np.random.choice(np.where(observation.numpy()[0,:,0] == 0)[0])
         else:

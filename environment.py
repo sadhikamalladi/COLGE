@@ -20,7 +20,11 @@ class Environment:
         self.nbr_of_nodes = 0
         self.edge_add_old = 0
         self.last_reward = 0
+        # for coloring, binary vector of whether node is colored or not
         self.observation = torch.zeros(1,self.nodes,1,dtype=torch.float)
+        # for coloring, specific color used
+        self.coloring = torch.zeros(self.nodes)
+        self.num_colors = 0
 
     def observe(self):
         """Returns the current observation that the agent can make
@@ -29,7 +33,7 @@ class Environment:
         return self.observation
 
     def act(self,node):
-
+        # add node to set
         self.observation[:,node,:]=1
         reward = self.get_reward(self.observation, node)
         return reward
@@ -53,15 +57,14 @@ class Environment:
 
             edge_add = 0
 
+            # check if every edge is covered by current solution
             for edge in self.graph_init.edges():
+                import pdb;pdb.set_trace()
                 if observation[:,edge[0],:]==0 and observation[:,edge[1],:]==0:
                     done=False
                     # break
                 else:
                     edge_add += 1
-
-            #reward = ((edge_add - self.edge_add_old) / np.max(
-            #   [1, self.graph_init.average_neighbor_degree([node])[node]]) - 10)/100
 
             self.edge_add_old = edge_add
 
@@ -85,8 +88,36 @@ class Environment:
 
             return (change_reward,done)
 
+        elif self.name=="COLORING":
+            added_color = self.color_graph(node)
+            reward = -1 if added_color else 1
+
+            done = torch.sum((self.observation == 0)).item() == 0
+            return reward, done
 
 
+    def color_graph(self, node):
+        min_color = self.num_colors+1
+        for edge in self.graph_init.edges():
+            if edge[0] == node:
+                neighbor = edge[1]
+            elif edge[1] == node:
+                neighbor = edge[0]
+            else:
+                neighbor = None
+
+            if neighbor is not None:
+                if (self.coloring[neighbor]+1) < min_color:
+                    min_color = self.coloring[neighbor] + 1
+
+        largest_color = torch.max(self.coloring)
+        self.coloring[node] = min_color
+        self.observation[0,node,0] = 1.0
+        if min_color > largest_color:
+            self.num_colors += 1
+            return True
+        return False
+                    
 
     def get_approx(self):
 
@@ -110,6 +141,9 @@ class Environment:
 
         elif self.name=="MAXCUT":
             return 1
+
+        elif self.name == "COLORING":
+            return self.num_colors
 
         else:
             return 'you pass a wrong environment name'
@@ -169,4 +203,5 @@ class Environment:
 
             return mdl.objective.value()
 
+        return 1
 
